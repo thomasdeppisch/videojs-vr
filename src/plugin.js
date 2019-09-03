@@ -6,7 +6,7 @@ import videojs from 'video.js';
 import * as THREE from 'three';
 import VRControls from 'three/examples/js/controls/VRControls.js';
 import VREffect from 'three/examples/js/effects/VREffect.js';
-import OrbitOrientationContols from './orbit-orientation-controls.js';
+import OrbitOrientationControls from './orbit-orientation-controls.js';
 import * as utils from './utils';
 import CanvasPlayerControls from './canvas-player-controls';
 
@@ -699,7 +699,7 @@ void main() {
             options.orientation = false;
           }
 
-          this.controls3d = new OrbitOrientationContols(options);
+          this.controls3d = new OrbitOrientationControls(options);
           this.canvasPlayerControls = new CanvasPlayerControls(this.player_, this.renderedCanvas);
         }
 
