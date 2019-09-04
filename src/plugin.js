@@ -701,10 +701,12 @@ void main() {
 
           this.controls3d = new OrbitOrientationControls(options);
           this.canvasPlayerControls = new CanvasPlayerControls(this.player_, this.renderedCanvas);
+          this.completeInitialization(); // wait until controls are initialized
         }
 
         this.animationFrameId_ = this.requestAnimationFrame(this.animate_);
       });
+
     } else if (window.navigator.getVRDevices) {
       this.triggerError_({code: 'web-vr-out-of-date', dismiss: false});
     } else {
@@ -717,6 +719,9 @@ void main() {
     window.addEventListener('vrdisplayactivate', this.handleVrDisplayActivate_, true);
     window.addEventListener('vrdisplaydeactivate', this.handleVrDisplayDeactivate_, true);
 
+  }
+
+  completeInitialization() {
     this.initialized_ = true;
     this.trigger('initialized');
   }
