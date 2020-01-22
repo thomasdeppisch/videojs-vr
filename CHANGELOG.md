@@ -1,3 +1,30 @@
+<a name="1.7.1"></a>
+## [1.7.1](https://github.com/videojs/videojs-vr/compare/v1.7.0...v1.7.1) (2019-11-18)
+
+### Bug Fixes
+
+* increase touchmove threshold for "taps" on mobile ([#190](https://github.com/videojs/videojs-vr/issues/190)) ([4e92c33](https://github.com/videojs/videojs-vr/commit/4e92c33))
+
+### Chores
+
+* add generator-helper deps back in ([0b8a8cd](https://github.com/videojs/videojs-vr/commit/0b8a8cd))
+* add lint-staged as dev-dep ([4844494](https://github.com/videojs/videojs-vr/commit/4844494))
+* fixup package-lock urls ([2ba689d](https://github.com/videojs/videojs-vr/commit/2ba689d))
+
+<a name="1.7.0"></a>
+# [1.7.0](https://github.com/videojs/videojs-vr/compare/v1.6.1...v1.7.0) (2019-09-09)
+
+### Features
+
+* Add support for Spatial audio rendering via Omnitone ([#181](https://github.com/videojs/videojs-vr/issues/181)) ([2af9aa3](https://github.com/videojs/videojs-vr/commit/2af9aa3))
+
+<a name="1.6.1"></a>
+## [1.6.1](https://github.com/videojs/videojs-vr/compare/v1.6.0...v1.6.1) (2019-09-05)
+
+### Bug Fixes
+
+* build css files before publish ([9a85fc9](https://github.com/videojs/videojs-vr/commit/9a85fc9))
+
 <a name="1.6.0"></a>
 # [1.6.0](https://github.com/videojs/videojs-vr/compare/v1.5.0...v1.6.0) (2019-08-28)
 
