@@ -1,17 +1,17 @@
-/*! @name videojs-vr @version 1.6.0 @license Apache-2.0 */
+/*! @name videojs-vr @version 1.7.1 @license Apache-2.0 */
 import _assertThisInitialized from '@babel/runtime/helpers/assertThisInitialized';
 import _inheritsLoose from '@babel/runtime/helpers/inheritsLoose';
 import window from 'global/window';
 import document from 'global/document';
 import WebVRPolyfill from 'webvr-polyfill';
 import videojs from 'video.js';
-import { Vector3, SphereBufferGeometry, MeshBasicMaterial, BackSide, Mesh, SphereGeometry, BufferGeometry, BoxGeometry, Vector2, Matrix3, PerspectiveCamera, Scene, VideoTexture, LinearFilter, RGBFormat, WebGLRenderer, ShaderMaterial } from 'three';
+import { Vector3, SphereBufferGeometry, MeshBasicMaterial, BackSide, Mesh, SphereGeometry, BufferGeometry, BoxGeometry, Vector2, Matrix3, PerspectiveCamera, Scene, VideoTexture, LinearFilter, RGBFormat, WebGLRenderer, AudioContext, ShaderMaterial } from 'three';
 import VRControls from 'three/examples/js/controls/VRControls.js';
 import VREffect from 'three/examples/js/effects/VREffect.js';
 import OrbitControls from 'three/examples/js/controls/OrbitControls.js';
 import DeviceOrientationControls from 'three/examples/js/controls/DeviceOrientationControls.js';
 
-var version = "1.6.0";
+var version = "1.7.1";
 
 /**
  * Convert a quaternion to an angle
@@ -203,11 +203,7 @@ function (_videojs$EventTarget) {
   var _proto = CanvasPlayerControls.prototype;
 
   _proto.togglePlay = function togglePlay() {
-    if (this.player.paused()) {
-      this.player.play();
-    } else {
-      this.player.pause();
-    }
+    this.trigger('vrtoggleplay');
   };
 
   _proto.onMoveStart = function onMoveStart(e) {
@@ -224,21 +220,36 @@ function (_videojs$EventTarget) {
   };
 
   _proto.onMoveEnd = function onMoveEnd(e) {
-    if (!this.shouldTogglePlay) {
+    // We want to have the same behavior in VR360 Player and standar player.
+    // in touchend we want to know if was a touch click, for a click we show the bar,
+    // otherwise continue with the mouse logic.
+    //
+    // Maximum movement allowed during a touch event to still be considered a tap
+    // Other popular libs use anywhere from 2 (hammer.js) to 15,
+    // so 10 seems like a nice, round number.
+    if (e.type === 'touchend' && this.touchMoveCount_ < 10) {
+      if (this.player.userActive() === false) {
+        this.player.userActive(true);
+        return;
+      }
+
+      this.player.userActive(false);
       return;
     }
 
-    this.togglePlay();
+    if (!this.shouldTogglePlay) {
+      return;
+    } // We want the same behavior in Desktop for VR360  and standar player
+
+
+    if (e.type == 'mouseup') {
+      this.togglePlay();
+    }
   };
 
   _proto.onMove = function onMove(e) {
-    // its hard to tap without a touchmove, if there have been less
-    // than one, we should still toggle play
-    if (e.type === 'touchmove' && this.touchMoveCount_ < 1) {
-      this.touchMoveCount_++;
-      return;
-    }
-
+    // Increase touchMoveCount_ since Android detects 1 - 6 touches when user click normaly
+    this.touchMoveCount_++;
     this.shouldTogglePlay = false;
   };
 
@@ -258,6 +269,89 @@ function (_videojs$EventTarget) {
   };
 
   return CanvasPlayerControls;
+}(videojs.EventTarget);
+
+/**
+ * This class manages ambisonic decoding and binaural rendering via Omnitone library.
+ */
+
+var OmnitoneController =
+/*#__PURE__*/
+function (_videojs$EventTarget) {
+  _inheritsLoose(OmnitoneController, _videojs$EventTarget);
+
+  /**
+   * Omnitone controller class.
+   *
+   * @class
+   * @param {AudioContext} audioContext - associated AudioContext.
+   * @param {Omnitone library} omnitone - Omnitone library element.
+   * @param {HTMLVideoElement} video - vidoe tag element.
+   * @param {Object} options - omnitone options.
+   */
+  function OmnitoneController(audioContext, omnitone, video, options) {
+    var _this;
+
+    _this = _videojs$EventTarget.call(this) || this;
+    var settings = videojs.mergeOptions({
+      // Safari uses the different AAC decoder than FFMPEG. The channel order is
+      // The default 4ch AAC channel layout for FFMPEG AAC channel ordering.
+      channelMap: videojs.browser.IS_SAFARI ? [2, 0, 1, 3] : [0, 1, 2, 3],
+      ambisonicOrder: 1
+    }, options);
+    _this.videoElementSource = audioContext.createMediaElementSource(video);
+    _this.foaRenderer = omnitone.createFOARenderer(audioContext, settings);
+
+    _this.foaRenderer.initialize().then(function () {
+      if (audioContext.state === 'suspended') {
+        _this.trigger({
+          type: 'audiocontext-suspended'
+        });
+      }
+
+      _this.videoElementSource.connect(_this.foaRenderer.input);
+
+      _this.foaRenderer.output.connect(audioContext.destination);
+
+      _this.initialized = true;
+
+      _this.trigger({
+        type: 'omnitone-ready'
+      });
+    }, function (error) {
+      videojs.log.warn("videojs-vr: Omnitone initializes failed with the following error: " + error + ")");
+    });
+
+    return _this;
+  }
+  /**
+   * Updates the rotation of the Omnitone decoder based on three.js camera matrix.
+   *
+   * @param {Camera} camera Three.js camera object
+   */
+
+
+  var _proto = OmnitoneController.prototype;
+
+  _proto.update = function update(camera) {
+    if (!this.initialized) {
+      return;
+    }
+
+    this.foaRenderer.setRotationMatrixFromCamera(camera.matrix);
+  }
+  /**
+   * Destroys the controller and does any necessary cleanup.
+   */
+  ;
+
+  _proto.dispose = function dispose() {
+    this.initialized = false;
+    this.foaRenderer.setRenderingMode('bypass');
+    this.foaRenderer = null;
+  };
+
+  return OmnitoneController;
 }(videojs.EventTarget);
 
 var Button = videojs.getComponent('Button');
@@ -409,9 +503,11 @@ function (_BigPlayButton) {
 videojs.registerComponent('BigVrPlayButton', BigVrPlayButton);
 
 var defaults = {
-  projection: 'AUTO',
+  debug: false,
+  omnitone: false,
   forceCardboard: false,
-  debug: false
+  omnitoneOptions: {},
+  projection: 'AUTO'
 };
 var errors = {
   'web-vr-out-of-date': {
@@ -958,6 +1054,11 @@ function (_Plugin) {
     }
 
     this.controls3d.update();
+
+    if (this.omniController) {
+      this.omniController.update(this.camera);
+    }
+
     this.effect.render(this.scene, this.camera);
 
     if (window.navigator.getGamepads) {
@@ -1148,6 +1249,18 @@ function (_Plugin) {
       });
     }
 
+    if (this.options_.omnitone) {
+      var audiocontext = AudioContext.getContext();
+      this.omniController = new OmnitoneController(audiocontext, this.options_.omnitone, this.getVideoEl_(), this.options_.omnitoneOptions);
+      this.omniController.one('audiocontext-suspended', function () {
+        _this4.player.pause();
+
+        _this4.player.one('playing', function () {
+          audiocontext.resume();
+        });
+      });
+    }
+
     this.on(this.player_, 'fullscreenchange', this.handleResize_);
     window.addEventListener('vrdisplaypresentchange', this.handleResize_, true);
     window.addEventListener('resize', this.handleResize_, true);
@@ -1173,6 +1286,12 @@ function (_Plugin) {
   _proto.reset = function reset() {
     if (!this.initialized_) {
       return;
+    }
+
+    if (this.omniController) {
+      this.omniController.off('audiocontext-suspended');
+      this.omniController.dispose();
+      this.omniController = undefined;
     }
 
     if (this.controls3d) {

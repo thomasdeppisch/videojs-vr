@@ -49,11 +49,7 @@ class CanvasPlayerControls extends videojs.EventTarget {
   }
 
   togglePlay() {
-    if (this.player.paused()) {
-      this.player.play();
-    } else {
-      this.player.pause();
-    }
+    this.trigger('vrtoggleplay');
   }
 
   onMoveStart(e) {
@@ -95,7 +91,7 @@ class CanvasPlayerControls extends videojs.EventTarget {
     }
 
     // We want the same behavior in Desktop for VR360  and standar player
-    if(e.type == 'mouseup') {
+    if (e.type === 'mouseup') {
       this.togglePlay();
     }
 
